@@ -32,7 +32,7 @@ export default function Customize() {
 
   return (
     <main style={{ maxWidth: 600, margin: '40px auto', padding: 16 }}>
-      <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 12 }}>サイトカスタマイズ</h1>
+      <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 12 }}>サイト選択/除外</h1>
 
       {sites.map((s) => (
         <label key={s.id} style={{ display: 'block', marginBottom: 8 }}>
