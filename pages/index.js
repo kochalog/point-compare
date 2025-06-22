@@ -64,9 +64,9 @@ export default function Home() {
   return (
     <main style={{ maxWidth: 800, margin: '40px auto', padding: 16 }}>
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700 }}>どこ得クローン</h1>
+        <h1 style={{ fontSize: 24, fontWeight: 700 }}>ポイント比較検索</h1>
         <a href="/customize" style={{ color: '#0070f3', textDecoration: 'underline' }}>
-          サイトカスタマイズ
+          サイト選択/除外
         </a>
       </header>
 
