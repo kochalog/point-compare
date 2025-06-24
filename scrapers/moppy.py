@@ -22,9 +22,10 @@ UAS = {
 
 # ─── HTML セレクタ（iOS 実HTMLに合わせて修正） ───
 SELECTORS = {
-    "item":  "li.a-list__item, div.a-list__item, li.m-list__item",  # コンテナ
-    "title": ".a-list__item__title",               # タイトル
-    "point": ".a-list__item__point",               # 還元値 (P や %)
+    # ↓ PC・iOS・Android すべて拾えるよう 3 パターンをカンマ区切り
+    "item":  "li.m-list__item, li.a-list__item, div.a-list__item",
+    "title": ".a-list__item__title",
+    "point": ".a-list__item__point",
 }
 # ───────────────────────────────────────────────
 
