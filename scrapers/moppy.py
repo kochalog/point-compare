@@ -1,61 +1,56 @@
 """
-scrapers/moppy.py
+scrapers/moppy.py  – 2025/06/24
 ────────────────────────────────────────────────────────────
-■ 目的
-同じ検索 URL を PC / iOS / Android の 3 つの User-Agent で取得し、
-    title            : 案件タイトル
-    reward_decimal   : 各デバイスの還元率のうち “最高値”
-    devices          : p,s,i,a をカンマ区切り
-の 1 行に統合したリストを返す。
-
-■ 流れ
-1) _fetch_html()     : UA を切り替えて HTML を取得
-2) _parse(html)      : BeautifulSoup で 1 ページ分を list[(title,reward)]
-3) scrape_moppy()    : 3 ページをマージし devices を作成
-4) __main__          : デバッグ用
+■ 概要
+  1. 検索キーワードごとに
+  2. PC / iOS / Android ３種類の User-Agent で HTML を取得
+  3. タイトル・還元率をパースし、
+     devices 列には p,s,i,a をカンマ区切りで格納する
+     （同タイトル行は最高還元率＆デバイス集合でマージ）
 ────────────────────────────────────────────────────────────
-※ モッピー側の HTML 構造が変わるとセレクタも変わるので、
-   必ず moppy.html を開いて class 名を確認してから調整してください。
 """
 
-import os
-import re
-import datetime
+import re, datetime, urllib.parse
 from collections import defaultdict
+from pprint import pprint
 
 import requests
 from bs4 import BeautifulSoup
-from pprint import pprint
 
-# ❶  検索キーワードは自由に変えてOK
-URL = "https://pc.moppy.jp/shopping/?keyword=楽天市場"
+# 検索キーワードを増やしたい場合はここに追加
+KEYWORDS = ["楽天市場", "マージキャンプ"]
 
-# ❷  User-Agent 3 種
+# UA コード → 実際の User-Agent 文字列
 UAS = {
     "p": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
     "i": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)",
     "a": "Mozilla/5.0 (Linux; Android 14)",
 }
 
-# ❸  ──────────── セレクタ設定 ────────────
-# moppy.html を開いて合わない場合は書き換えてください
+# ────────────── HTML セレクタ設定 ──────────────
 SELECTORS = {
-    "item":  "li.m-list__item",                 # 1 件を包むタグ
-    "title": ".m-list__item__action--line-clamp1",
-    "point": ".m-list__item__point",
+    "item":  "li.m-list__item",                       # 1 件コンテナ
+    "title": ".m-list__item__action--line-clamp1",    # タイトル
+    "point": ".m-list__item__point",                  # 還元率
 }
-# ────────────────────────────────────────
+# 必ず moppy.html を開いて class 名が合わない場合は上を書き換えてください
+# ──────────────────────────────────────────────
 
 
-def _fetch_html(ua: str) -> str:
-    """1 ページを UA 指定で取得して HTML を返す"""
-    res = requests.get(URL, headers={"User-Agent": ua}, timeout=15)
+def build_url(keyword: str) -> str:
+    """キーワードを URL エンコードして正式検索 URL を作る"""
+    encoded = urllib.parse.quote(keyword, safe="")
+    return f"https://pc.moppy.jp/search/?word={encoded}"
+
+
+def _fetch_html(url: str, ua: str) -> str:
+    res = requests.get(url, headers={"User-Agent": ua}, timeout=15)
     res.raise_for_status()
     return res.text
 
 
 def _parse(html: str):
-    """1 ページ分の HTML から (title, reward_decimal) をイテレート"""
+    """HTML から (title, reward_decimal) を yield"""
     soup = BeautifulSoup(html, "html.parser")
     for box in soup.select(SELECTORS["item"]):
         t = box.select_one(SELECTORS["title"])
@@ -64,47 +59,48 @@ def _parse(html: str):
             continue
         title = t.get_text(strip=True)
 
-        percent_txt = p.get_text(strip=True)        # '1.2%' など
-        m = re.search(r"(\d+(?:\.\d+)?)", percent_txt)
+        m = re.search(r"(\d+(?:\.\d+)?)", p.get_text(strip=True))
         reward = float(m.group(1)) if m else 0.0
-
         yield title, reward
 
 
 def scrape_moppy():
     """
-    UA=3 種で取得 → タイトルごとに devices と最高還元率をマージ
-    戻り値: list[dict]
+    returns list[dict]:
+      {title, reward_decimal, devices}
     """
-    merged = defaultdict(lambda: {"devices": set(), "reward_decimal": 0.0})
+    merged = defaultdict(lambda: {"reward_decimal": 0.0, "devices": set()})
 
-    for code, ua in UAS.items():           # p / i / a
-        html = _fetch_html(ua)
-        for title, reward in _parse(html):
-            m = merged[title]
-            m["title"] = title
-            m["reward_decimal"] = max(m["reward_decimal"], reward)
-            m["devices"].add(code)
+    for kw in KEYWORDS:
+        url = build_url(kw)
+        for code, ua in UAS.items():           # p / i / a
+            html = _fetch_html(url, ua)
+            for title, reward in _parse(html):
+                m = merged[title]
+                m["title"] = title
+                m["reward_decimal"] = max(m["reward_decimal"], reward)
+                m["devices"].add(code)
 
+    # set → 'p,i,a' のように並びを固定してカンマ連結
     return [
         {
             "title": v["title"],
             "reward_decimal": v["reward_decimal"],
-            "devices": ",".join(sorted(v["devices"])),  # 'i,a' など
+            "devices": ",".join(sorted(v["devices"])),
         }
         for v in merged.values()
     ]
 
 
-# ─────────────── デバッグ用 ────────────────
+# ────────────── デバッグ用 ──────────────────
 if __name__ == "__main__":
-    # 1) HTML（PC 版）を保存してセレクタ確認に使う
-    pc_html = _fetch_html(UAS["p"])
+    # PC 版 HTML を保存：セレクタ確認に使う
+    first_url = build_url(KEYWORDS[0])
     with open("moppy.html", "w", encoding="utf-8") as f:
-        f.write(pc_html)
-    print("PC 版 HTML を moppy.html に保存しました → open して class 名を確認してください")
+        f.write(_fetch_html(first_url, UAS["p"]))
+    print("moppy.html を保存しました → open して class 名を確認できます")
 
-    # 2) スクレイプ結果を確認
-    data = scrape_moppy()
-    print(f"取得件数: {len(data)}  件")
-    pprint(data[:10])
+    # スクレイプ結果プレビュー
+    items = scrape_moppy()
+    print(f"取得件数: {len(items)} 件")
+    pprint(items[:10])
