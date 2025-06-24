@@ -22,9 +22,9 @@ UAS = {
 
 # ─── HTML セレクタ（iOS 実HTMLに合わせて修正） ───
 SELECTORS = {
-    "item":  "li.m-list__item",              # 1 件を包むコンテナ
-    "title": ".a-list__item__title",         # タイトル
-    "point": ".a-list__item__point",         # 還元値 (％ or P)
+    "item":  "li.a-list__item, div.a-list__item, li.m-list__item",  # コンテナ
+    "title": ".a-list__item__title",               # タイトル
+    "point": ".a-list__item__point",               # 還元値 (P や %)
 }
 # ───────────────────────────────────────────────
 
