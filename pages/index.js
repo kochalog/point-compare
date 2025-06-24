@@ -1,16 +1,32 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 
-/* ── デバイス表記ヘルパー ───────────────────────── */
-const DEVICE_LABEL = { p: 'PC', s: 'iOS/Android', i: 'iOS', a: 'Android' };
-const formatDevices = (raw) =>
-  !raw
-    ? 'PC/スマホ共通'
-    : raw
-        .split(',')
-        .map((c) => DEVICE_LABEL[c.trim()] || c)
-        .join(', ');
-/* ─────────────────────────────────────────────── */
+/* ── デバイス表記ヘルパー ──────────────────────────── */
+function formatDevices(raw) {
+  // raw 例: '', 'p', 'i,a', 'p,i,a' など
+  if (!raw) return 'All'; // 念のため空文字は共通扱い
+
+  const set = new Set(raw.split(',').filter(Boolean)); // {'p','i'} など
+
+  // 1) 全端末対応
+  if (set.size === 3) return 'All';
+
+  // 2) 単独
+  if (set.size === 1) {
+    return { p: 'PC', i: 'iOS', a: 'Android' }[[...set][0]];
+  }
+
+  // 3) iOS + Android = スマホ
+  if (set.has('i') && set.has('a') && set.size === 2) return 'スマホ';
+
+  // 4) その他の組み合わせ（PC/Android など）
+  const NAME = { p: 'PC', i: 'iOS', a: 'Android' };
+  return ['p', 'i', 'a']
+    .filter((c) => set.has(c))
+    .map((c) => NAME[c])
+    .join('/');
+}
+/* ──────────────────────────────────────────────── */
 
 export default function Home() {
   /* 検索入力 & 結果 */
@@ -18,11 +34,11 @@ export default function Home() {
   const [offers, setOffers] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  /* ポイントサイト一覧（検索用に保持するだけ） */
-  const [sites, setSites] = useState([]);        // [{id,name},…]
-  const [selected, setSelected] = useState([]);  // site_id[]
+  /* ポイントサイト選択 */
+  const [sites, setSites] = useState([]);       // [{id,name}]
+  const [selected, setSelected] = useState([]); // site_id[]
 
-  /* 初回：サイト一覧フェッチ & 選択済みを localStorage から復元 */
+  /* 初回：サイト一覧フェッチ & localStorage 復元 */
   useEffect(() => {
     (async () => {
       const { data } = await supabase
@@ -47,14 +63,16 @@ export default function Home() {
     const words = trimmed.split(/\s+/);
     let query = supabase
       .from('offers')
-      .select('id,title,reward_decimal,devices,point_sites(name)')
+      .select(
+        'id,title,reward_decimal,devices,point_sites(name)'
+      )
       .order('reward_decimal', { ascending: false });
 
-    /* 選択サイトで絞り込み */
     if (selected.length) query = query.in('site_id', selected);
 
-    /* AND 検索 */
-    words.forEach((w) => (query = query.ilike('title', `%${w}%`)));
+    words.forEach((w) => {
+      query = query.ilike('title', `%${w}%`);
+    });
 
     const { data } = await query;
     setOffers(data || []);
@@ -64,7 +82,7 @@ export default function Home() {
   return (
     <main style={{ maxWidth: 800, margin: '40px auto', padding: 16 }}>
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700 }}>ポイント比較検索</h1>
+        <h1 style={{ fontSize: 24, fontWeight: 700 }}>どこ得クローン</h1>
         <a href="/customize" style={{ color: '#0070f3', textDecoration: 'underline' }}>
           サイト選択/除外
         </a>
@@ -76,13 +94,18 @@ export default function Home() {
           value={kw}
           onChange={(e) => setKw(e.target.value)}
           placeholder="案件名（スペースで AND 検索）"
-          style={{ width: '100%', padding: 8, border: '1px solid #ccc', borderRadius: 4 }}
+          style={{
+            width: '100%',
+            padding: 8,
+            border: '1px solid #ccc',
+            borderRadius: 4,
+          }}
         />
       </form>
 
       {loading && <p style={{ marginTop: 8 }}>検索中…</p>}
 
-      {/* ── 結果テーブル ── */}
+      {/* ── 結果 ── */}
       {offers.length > 0 && (
         <table style={{ width: '100%', marginTop: 24, borderCollapse: 'collapse' }}>
           <thead style={{ background: '#f4f4f4' }}>
@@ -98,7 +121,9 @@ export default function Home() {
               <tr key={o.id}>
                 <td style={{ border: '1px solid #ddd', padding: 8 }}>{o.title}</td>
                 <td style={{ border: '1px solid #ddd', padding: 8 }}>{o.point_sites?.name}</td>
-                <td style={{ border: '1px solid #ddd', padding: 8 }}>{formatDevices(o.devices)}</td>
+                <td style={{ border: '1px solid #ddd', padding: 8 }}>
+                  {formatDevices(o.devices)}
+                </td>
                 <td style={{ border: '1px solid #ddd', padding: 8, textAlign: 'right' }}>
                   {o.reward_decimal}
                 </td>
