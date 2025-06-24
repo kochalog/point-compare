@@ -9,13 +9,12 @@ def scrape_moppy():
     soup = BeautifulSoup(res.text, "html.parser")
 
     items = []
-    for box in soup.select(".itemBox"):          # ボックス1件
+    for box in soup.select(".itemBox"):
         title = box.select_one(".contents__title").get_text(strip=True)
 
         percent = box.select_one(".contents__percent span").get_text(strip=True)
-        reward_decimal = float(re.sub(r"[%％]", "", percent))  # "1.2%" → 1.2
+        reward_decimal = float(re.sub(r"[%％]", "", percent))
 
-        # デバイス判定（例: alt="pc" alt="sp"）
         icons = box.select(".iconList img[alt]")
         devices = ",".join({
             "pc": "p", "sp": "s", "ios": "i", "android": "a"
@@ -30,4 +29,4 @@ def scrape_moppy():
 
 if __name__ == "__main__":
     from pprint import pprint
-    pprint(scrape_moppy()[:3])
+    pprint(scrape_moppy()[:5])
