@@ -1,0 +1,24 @@
+# .github/workflows/scrape.yml
+name: scrape
+
+on:
+  schedule:
+    # JST 1:01 / 7:01 / 13:01 / 19:01 に実行
+    - cron: '1 0,6,12,18 * * *'
+  workflow_dispatch:   # 手動実行も可
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r requirements.txt
+      - run: python run.py
