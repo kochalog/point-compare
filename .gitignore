@@ -1,0 +1,13 @@
+# --- Python 仮想環境 & キャッシュ ---
+.venv/
+__pycache__/
+*.pyc
+
+# --- Node.js ---
+node_modules/
+
+# --- 個人設定／機密 ---
+.env
+
+# --- スクレイプ用一時ファイル ---
+*.html          # pc.html / ios.html / android.html / moppy.html など
